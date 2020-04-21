@@ -1,0 +1,55 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://catalog.uaa.alaska.edu/coursedescriptions/"
+page = requests.get(URL)
+
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/coursedescriptions\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("https://catalog.uaa.alaska.edu" + p.group(0))
+
+departments_of_interest = [departments[2], departments[7], departments[17], departments[20], departments[43]]
+
+filename = "alaska" + ".csv"
+
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Title", "Credit",  "Desc"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+for dep in departments_of_interest:
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    #how will classes differ across sites?
+    courses = soup.findAll(class_="courseblock")
+    for course in courses:
+        
+        intro = course.find(class_="courseblocktitle").text
+    
+        if "  " in intro:
+            lst = intro.split("  ")
+            title = lst[0]
+            credits = lst[1]
+
+    # desc = course.find(class_="courseblockdesc").text
+    # if not desc: (this line doesn't work but should implement something like it)
+        desc = course.find(class_="courseblockdesc").text
+        
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                desc = desc[2:]
+                csv_writer.writerow([title, credits,  desc])
